@@ -1,11 +1,22 @@
+import { useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import MapContainer from '@/features/map/MapContainer';
 import LayerPanel from '@/features/layers/LayerPanel';
 import MetadataPanel from '@/features/metadata/MetadataPanel';
 import { useMapStore } from '@/store/mapStore';
+import { useLayerStore } from '@/store/layerStore';
+import { useAuthStore } from '@/store/authStore';
 
 export default function MapPage() {
   const isMetadataPanelOpen = useMapStore(state => state.isMetadataPanelOpen);
+  const fetchLayers         = useLayerStore(state => state.fetchLayers);
+  const token               = useAuthStore(state => state.token);
+
+  // Re-fetch the layer hierarchy whenever the auth token changes
+  // (login/logout/role switch triggers a fresh filtered response from backend)
+  useEffect(() => {
+    fetchLayers();
+  }, [fetchLayers, token]);
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-gray-100">

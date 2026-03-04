@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { useLayerStore } from '@/store/layerStore';
+import { updateLayerRestricted } from '@/services/layerService';
 import type { LayerNode } from '@/types/layer';
 import { flattenTree } from '@/features/layers/layerUtils';
 
@@ -14,14 +16,15 @@ type FlatLayerEditable = {
 
 /**
  * Admin: tabular view of all registered layers.
- * Allows toggling the `restricted` flag (UI only — backend integration pending).
+ * Allows toggling the `restricted` flag and persisting to backend.
  */
 export default function LayerRegistryPage() {
   const layerTree    = useLayerStore(state => state.layerTree);
+  const fetchLayers  = useLayerStore(state => state.fetchLayers);
   const setLayerTree = useLayerStore(state => state.setLayerTree);
 
-  // Local mutable copy for admin edits (not yet persisted to backend)
   const [editedTree, setEditedTree] = useState<LayerNode[]>(layerTree);
+  const [isSaving, setIsSaving]     = useState(false);
 
   const flatRows: FlatLayerEditable[] = flattenTree(editedTree).map(n => ({
     id:            n.id,
@@ -32,7 +35,11 @@ export default function LayerRegistryPage() {
     depth:         n.depth ?? 0,
   }));
 
-  // Toggle restricted flag on a node in the tree
+  // Collect original flat map for diff
+  const originalFlat = flattenTree(layerTree);
+  const originalById = Object.fromEntries(originalFlat.map(n => [n.id, n.restricted]));
+
+  // Toggle restricted flag locally
   const toggleRestricted = useCallback(
     (id: string) => {
       function patchTree(nodes: LayerNode[]): LayerNode[] {
@@ -47,15 +54,33 @@ export default function LayerRegistryPage() {
     [],
   );
 
-  const handleApply = () => {
-    setLayerTree(editedTree);
+  const handleApply = async () => {
+    // Only PUT layers whose restricted flag actually changed
+    const changed = flatRows.filter(r => r.restricted !== originalById[r.id]);
+    if (changed.length === 0) return;
+
+    setIsSaving(true);
+    try {
+      await Promise.all(changed.map(r => updateLayerRestricted(r.id, r.restricted)));
+      toast.success(`Updated ${changed.length} layer(s).`);
+      // Optimistically update store, then refetch for consistency
+      setLayerTree(editedTree);
+      await fetchLayers();
+      setEditedTree(useLayerStore.getState().layerTree);
+    } catch {
+      toast.error('Failed to save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleReset = () => {
     setEditedTree(layerTree);
   };
 
-  const hasChanges = JSON.stringify(editedTree) !== JSON.stringify(layerTree);
+  const hasChanges = JSON.stringify(
+    flatRows.map(r => ({ id: r.id, restricted: r.restricted })),
+  ) !== JSON.stringify(originalFlat.map(n => ({ id: n.id, restricted: n.restricted })));
 
   return (
     <div>
@@ -76,9 +101,10 @@ export default function LayerRegistryPage() {
             </button>
             <button
               onClick={handleApply}
-              className="text-sm px-3 py-1.5 rounded bg-purple-600 text-white hover:bg-purple-500 transition-colors font-medium"
+              disabled={isSaving}
+              className="text-sm px-3 py-1.5 rounded bg-purple-600 text-white hover:bg-purple-500 disabled:bg-slate-300 disabled:text-slate-500 transition-colors font-medium"
             >
-              Apply Changes
+              {isSaving ? 'Saving…' : 'Apply Changes'}
             </button>
           </div>
         )}
@@ -142,7 +168,7 @@ export default function LayerRegistryPage() {
       </div>
 
       <p className="text-xs text-slate-400 mt-3">
-        ⚠️ Changes are applied locally. Backend persistence will be added in a future release.
+        Changes are saved to the backend via PUT /api/layers/:id/restricted.
       </p>
     </div>
   );

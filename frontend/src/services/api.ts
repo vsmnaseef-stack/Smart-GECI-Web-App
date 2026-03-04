@@ -10,22 +10,44 @@ const api = axios.create({
   },
 });
 
-// ─── request interceptor (attach JWT when available) ─────────────────────────
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+/** Read persisted auth state from localStorage (avoids circular import with authStore). */
+function getPersistedAuth(): { token?: string; authMode?: string } {
+  try {
+    const raw = localStorage.getItem('smart-geci-auth');
+    if (!raw) return {};
+    return (JSON.parse(raw) as { state?: { token?: string; authMode?: string } }).state ?? {};
+  } catch {
+    return {};
+  }
+}
+
+// ─── request interceptor: attach JWT ─────────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
-    // Future: read JWT from authStore or localStorage and attach as Bearer token
-    // const token = localStorage.getItem('smart-geci-token');
-    // if (token) config.headers.Authorization = `Bearer ${token}`;
+    const { token } = getPersistedAuth();
+    // Attach real JWT; skip demo-token to avoid sending it as a Bearer credential
+    if (token && token !== 'demo-token') {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error: unknown) => Promise.reject(error),
 );
 
-// ─── response interceptor (global error handling) ────────────────────────────
+// ─── response interceptor: global error handling ─────────────────────────────
 api.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
-    // Future: handle 401 → redirect to login, 403 → show forbidden
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const { authMode } = getPersistedAuth();
+      // Only auto-logout for real sessions; demo sessions remain intact
+      if (authMode === 'real') {
+        localStorage.removeItem('smart-geci-auth');
+        window.location.href = '/login';
+      }
+    }
     return Promise.reject(error);
   },
 );

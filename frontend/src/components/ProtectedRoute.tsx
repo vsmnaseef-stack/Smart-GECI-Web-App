@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 
 /**
  * Renders `children` only when the current role matches `requiredRole`.
- * Any other role is redirected to "/".
+ * Works for both demo and real auth modes — role is always derived from the store.
  */
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const role = useAuthStore(state => state.role);

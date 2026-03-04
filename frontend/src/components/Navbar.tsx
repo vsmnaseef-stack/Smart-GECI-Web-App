@@ -2,14 +2,18 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 
 export default function Navbar() {
-  const navigate = useNavigate();
-  const role = useAuthStore(state => state.role);
-  const logout = useAuthStore(state => state.logout);
+  const navigate    = useNavigate();
+  const role        = useAuthStore(state => state.role);
+  const authMode    = useAuthStore(state => state.authMode);
+  const user        = useAuthStore(state => state.user);
+  const logout      = useAuthStore(state => state.logout);
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
+
+  const displayName = user?.username ?? (role !== 'guest' ? role : null);
 
   return (
     <nav className="flex items-center justify-between px-5 py-2.5 bg-slate-800 text-white shadow-md z-50 shrink-0">
@@ -25,8 +29,10 @@ export default function Navbar() {
         </span>
       </button>
 
-      {/* ── role badge ── */}
+      {/* ── right side ── */}
       <div className="flex items-center gap-3">
+
+        {/* role + mode badge */}
         {role !== 'guest' && (
           <span
             className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -35,7 +41,9 @@ export default function Navbar() {
                 : 'bg-emerald-700 text-emerald-100'
             }`}
           >
-            {role === 'admin' ? 'Admin' : 'Authorized User'}
+            {displayName
+              ? `${displayName} · ${authMode === 'demo' ? 'Demo' : 'Real'}`
+              : (role === 'admin' ? 'Admin' : 'Authorized User')}
           </span>
         )}
 

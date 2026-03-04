@@ -1,21 +1,37 @@
 import api from './api';
+import { getDemoRoleHeaders } from '@/store/authStore';
 import type { LayerNode } from '@/types/layer';
 
 /**
- * Fetch the full layer tree from the backend.
- * The backend returns a nested hierarchy ready to render.
+ * Fetch the full layer hierarchy from the backend.
+ * - Demo mode: sends x-role header so backend filters correctly.
+ * - Real mode: JWT is attached automatically by api.ts interceptor.
  */
-export async function fetchLayerTree(): Promise<LayerNode[]> {
-  const response = await api.get<LayerNode[]>('/layers/tree');
+export async function fetchLayerHierarchy(): Promise<LayerNode[]> {
+  const response = await api.get<LayerNode[]>('/layers/hierarchy', {
+    headers: getDemoRoleHeaders(),
+  });
   return response.data;
 }
 
+/** @deprecated Use fetchLayerHierarchy instead */
+export async function fetchLayerTree(): Promise<LayerNode[]> {
+  return fetchLayerHierarchy();
+}
+
 /**
- * Persist a reordered / re-parented layer hierarchy (admin only).
- * Backend integration pending — structure is ready.
+ * Update the parent of a layer (admin only).
  */
-export async function saveLayerHierarchy(tree: LayerNode[]): Promise<void> {
-  await api.put('/layers/hierarchy', { tree });
+export async function updateLayerParent(
+  id: string,
+  parentId: string | null,
+): Promise<LayerNode> {
+  const response = await api.put<LayerNode>(
+    `/layers/${id}/parent`,
+    { parentId },
+    { headers: getDemoRoleHeaders() },
+  );
+  return response.data;
 }
 
 /**
@@ -25,6 +41,17 @@ export async function updateLayerRestricted(
   id: string,
   restricted: boolean,
 ): Promise<LayerNode> {
-  const response = await api.patch<LayerNode>(`/layers/${id}`, { restricted });
+  const response = await api.put<LayerNode>(
+    `/layers/${id}/restricted`,
+    { restricted },
+    { headers: getDemoRoleHeaders() },
+  );
   return response.data;
+}
+
+/**
+ * Persist a reordered / re-parented layer hierarchy (admin only).
+ */
+export async function saveLayerHierarchy(tree: LayerNode[]): Promise<void> {
+  await api.put('/layers/hierarchy', { tree }, { headers: getDemoRoleHeaders() });
 }

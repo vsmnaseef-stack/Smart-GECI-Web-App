@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { LayerNode } from '@/types/layer';
 import type { UserRole } from '@/types/auth';
+import { fetchLayerHierarchy } from '@/services/layerService';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -145,6 +146,7 @@ interface LayerState {
   isLoading: boolean;
   error: string | null;
 
+  fetchLayers: () => Promise<void>;
   setLayerTree: (tree: LayerNode[]) => void;
   toggleLayer: (id: string, role: UserRole) => void;
   toggleExpand: (id: string) => void;
@@ -161,6 +163,17 @@ export const useLayerStore = create<LayerState>((set, get) => ({
   expandedNodes: ['buildings', 'infrastructure', 'green_spaces'],
   isLoading: false,
   error: null,
+
+  fetchLayers: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const tree = await fetchLayerHierarchy();
+      set({ layerTree: tree, isLoading: false });
+    } catch {
+      // Fall back to mock data so the app remains usable without a backend
+      set({ isLoading: false, error: 'Could not load layers from server. Using cached data.' });
+    }
+  },
 
   setLayerTree: (tree) => set({ layerTree: tree }),
 

@@ -10,9 +10,11 @@ import LayerTree from './LayerTree';
 export default function LayerPanel() {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const role          = useAuthStore(state => state.role);
-  const getVisible    = useLayerStore(state => state.getVisibleLayers);
-  const activeCount   = useLayerStore(state => state.activeLayerIds.length);
+  const role        = useAuthStore(state => state.role);
+  const getVisible  = useLayerStore(state => state.getVisibleLayers);
+  const activeCount = useLayerStore(state => state.activeLayerIds.length);
+  const isLoading   = useLayerStore(state => state.isLoading);
+  const error       = useLayerStore(state => state.error);
 
   // Filtering happens here via the store selector — NOT in JSX
   const visibleLayers = getVisible(role);
@@ -34,6 +36,9 @@ export default function LayerPanel() {
                 {activeCount}
               </span>
             )}
+            {isLoading && (
+              <span className="text-xs text-slate-400 shrink-0">⟳</span>
+            )}
           </div>
         )}
         <button
@@ -46,9 +51,14 @@ export default function LayerPanel() {
         </button>
       </div>
 
-      {/* ── layer tree ── */}
+      {/* ── layer tree or error ── */}
       {!isCollapsed && (
         <div className="flex-1 overflow-y-auto p-2">
+          {error && (
+            <p className="text-xs text-amber-600 bg-amber-50 rounded px-2 py-1.5 mb-2">
+              {error}
+            </p>
+          )}
           <LayerTree nodes={visibleLayers} />
         </div>
       )}
