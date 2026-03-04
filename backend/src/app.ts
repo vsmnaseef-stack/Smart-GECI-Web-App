@@ -4,7 +4,7 @@ import cors    from 'cors';
 import { env } from './config/env';
 import { createRequestLogger } from './middleware/requestLogger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
-import { roleContext } from './middleware/roleContext';
+import { authMiddleware } from './middleware/authMiddleware';
 import apiRouter from './routes';
 
 const app = express();
@@ -18,7 +18,7 @@ app.use(
     origin:      env.CORS_ORIGIN,
     credentials: true,
     methods:     ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-role'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 );
 
@@ -29,9 +29,10 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // ─── HTTP request logging ─────────────────────────────────────────────────────
 app.use(createRequestLogger());
 
-// ─── Role context (reads x-role header, attaches req.role) ───────────────────
-// Replace the header read with JWT decoding here when auth is implemented.
-app.use(roleContext);
+// ─── JWT auth (verifies Bearer token, sets req.user + req.role) ─────────────
+// Unauthenticated requests continue with req.role = 'guest'; individual
+// routes apply requireAuth / requireAdmin guards as needed.
+app.use(authMiddleware);
 
 // ─── API routes ───────────────────────────────────────────────────────────────
 app.use('/api', apiRouter);

@@ -37,6 +37,10 @@ export const env = {
   GEOSERVER_PASSWORD:          optionalEnv('GEOSERVER_PASSWORD', 'geoserver'),
   GEOSERVER_DEFAULT_WORKSPACE: optionalEnv('GEOSERVER_DEFAULT_WORKSPACE', 'smart_geci'),
 
+  // JWT
+  JWT_SECRET:     requireEnv('JWT_SECRET'),
+  JWT_EXPIRES_IN: optionalEnv('JWT_EXPIRES_IN', '8h'),
+
   get isDevelopment() { return this.NODE_ENV === 'development'; },
   get isProduction()  { return this.NODE_ENV === 'production'; },
 } as const;
